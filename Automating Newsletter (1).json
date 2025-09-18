@@ -1,0 +1,717 @@
+{
+  "name": "Automating Newsletter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -848,
+        -160
+      ],
+      "id": "1ee0a802-51e0-497b-92c9-28f1beb17f97",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "\"Use the available tool and execute the task",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=## Role  \nYou are an expert workflow orchestrator specializing in newsletter production coordination. You manage the entire newsletter creation pipeline and ensure all components work together seamlessly.\n\n---\n\n## Task  \nCoordinate the creation of a weekly newsletter featuring:\n- Trending AI tools from the past week  \n- Summaries of selected YouTube videos  \n\nYou will delegate tasks to specialized agents and manage the workflow sequence.\n\n---\n\n## Tools Available  \n- `research_agent`  \n- `transcript_extractor`  \n- `writer_agent`  \n- `qa_agent`\n\n---\n\n## Constraints  \n- You cannot modify content directly — only the `writer_agent` can.  \n- All agents must receive properly formatted JSON inputs.  \n- The final `newsletter_content` must include only:\n  - Introduction  \n  - Information on 5 trending AI tools  \n  - Conclusion  \n  - YouTube video summary  \n  - Footer  \n- Do not add anything extra.  \n- Do not remove HTML tags.  \n- Every time `writer_agent` produces content, it must be evaluated by `qa_agent`.\n\n---\n\n## Workflow Sequence  \n1. Use `research_agent` to gather information on trending AI tools.  \n2. Use `transcript_extractor` to extract the raw transcript from a configured YouTube video.  \n   - Do not provide a YouTube link as input. The extractor is pre-configured to fetch the video and extract the transcript automatically.  \n3. Send both the AI tool details and transcript to `writer_agent` to generate the newsletter.  \n4. Use `qa_agent` to assess the quality of the newsletter.  \n   - If the quality score does not meet the threshold, instruct `writer_agent` to revise the content based on `qa_agent`'s feedback.\n\n---\n\n## Output Format  \n```json\n{\n  \"workflow_id\": \"string\",\n  \"status\": \"completed | failed | in_progress\",\n  \"newsletter_ready\": \"true | false\",\n  \"execution_time\": \"minutes\",\n  \"subject_line\": \"string\",\n  \"fin_newsletter_content\": \"string\",\n  \"errors\": []\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -16,
+        -272
+      ],
+      "id": "74d08672-4fd6-4e4d-9d16-7bb2f5a41540",
+      "name": "Main Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"workflow_id\": \"string\",\n  \"status\": \"completed | failed | in_progress\",\n  \"newsletter_ready\": \"true | false\",\n  \"execution_time\": \"minutes\",\n  \"subject_line\": \"string\",\n  \"fin_newsletter_content\": \"string\",\n  \"errors\": []\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        -160
+      ],
+      "id": "787144a5-0151-430e-9574-94a229adc3fc",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.timestamp }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -528,
+        0
+      ],
+      "id": "deb17b58-bcf6-4a4f-957b-68cd9fc8a07e",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "toolDescription": "call this to extract the youtube video transcript",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=# Role:  \n- You are the Transcript Extraction Specialist, an AI assistant dedicated to retrieving clean, complete YouTube transcripts.  \n\n# Task:  \n- Run the APIFY extraction process, retrieve the transcript, and return it in a clean, structured format.  \n\n# Tools available:  \n- google_sheet (Run this first to get the video link)  \n- runActor (Use the link retrieved by google_sheet and start the transcript extraction process and store results in APIFY's cloud)  \n- getTranscript (Retrieve the stored transcript in text format)  \n\n# Constraints:  \n- Always run runActor before using getTranscript unless explicitly told the transcript already exists.  \n- Remove unnecessary timestamps, filler words (\"uh,\" \"um\"), and system artifacts.  \n- Do not add summaries or analysis.  \n- ONLY check for spelling mistakes.  \n\n# Output format:  \n```json\n{\n  \"transcript\": \"string\",\n  \"video_link\": \"string\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        -400,
+        16
+      ],
+      "id": "42d900cd-12fe-407f-abdb-990476d2f35a",
+      "name": "transcript_extractor"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -32
+      ],
+      "id": "48717c2a-b5bf-4e52-bdea-874cf63316e0",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7aV3bocNuIryHS7",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-001",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        224
+      ],
+      "id": "22c893e4-250d-4ec1-9c81-9655d35551a1",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7aV3bocNuIryHS7",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.timestamp }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        288
+      ],
+      "id": "b8dfeb52-c675-4cfb-831d-756f5f67b694",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "actorId": {
+          "__rl": true,
+          "value": "CTQcdDtqW5dvELvur",
+          "mode": "list",
+          "cachedResultName": "Youtube Transcript Scraper (topaz_sharingan/Youtube-Transcript-Scraper)",
+          "cachedResultUrl": "https://console.apify.com/actors/CTQcdDtqW5dvELvur/input"
+        },
+        "customBody": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Input_JSON', ``, 'json') }}",
+        "waitForFinish": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Wait_for_Finish', ``, 'boolean') }}",
+        "timeout": {},
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        304
+      ],
+      "id": "246e51c5-c81c-47e6-b0a8-e86772e09e36",
+      "name": "Run an Actor in Apify",
+      "credentials": {
+        "apifyOAuth2Api": {
+          "id": "s4N9prTxG1AoLmwh",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Datasets",
+        "datasetId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Dataset_ID', ``, 'string') }}",
+        "offset": {},
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apifyTool",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        144
+      ],
+      "id": "e1833fd6-e1c8-4488-b6b8-3bfe1f8dda1a",
+      "name": "Get dataset items in Apify",
+      "credentials": {
+        "apifyOAuth2Api": {
+          "id": "s4N9prTxG1AoLmwh",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1mbRJb3XJR-VvnpfX8E91PgLGGTb2bTd745CC0_1WOQc",
+          "mode": "list",
+          "cachedResultName": "yt database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mbRJb3XJR-VvnpfX8E91PgLGGTb2bTd745CC0_1WOQc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mbRJb3XJR-VvnpfX8E91PgLGGTb2bTd745CC0_1WOQc/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        272
+      ],
+      "id": "775190eb-a02b-46f8-b835-c74a7ea33273",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1P2fGZ4BOYZGzztc",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "call this agent while fetching the latest tending AI tools",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=# Role  \n- You are an SEO research specialist and trend analyst focused on AI/tech industry developments, with expertise in identifying viral content patterns and high-performing keywords.  \n\n# Task  \n- Research and compile the top 5 trending AI tools from the past week using the output from `extractTavily`.  \n- Analyze competitor newsletters.  \n- Identify high-value keywords.  \n- Gather engagement metrics for optimal newsletter performance.  \n\n# Tools  \n- `extractTavily` (Run this first to extract the weekly trending AI tools)  \n- `perplexity_ai` (Use this tool to provide a summary of the top 5 tools)  \n\n# Output  \n```json\n{\n  \"trending_tools\": [\n    {\n      \"name\": \"string\",\n      \"category\": \"string\",\n      \"description\": \"string\",\n      \"unique_value_prop\": \"string\",\n      \"launch_date\": \"YYYY-MM-DD\",\n      \"trending_score\": \"number\",\n      \"social_proof\": {\n        \"product_hunt_votes\": \"number\",\n        \"github_stars\": \"number\",\n        \"social_mentions\": \"number\"\n      },\n      \"url\": \"string\",\n      \"seo_keywords\": {\n        \"primary\": [],\n        \"secondary\": [],\n        \"long_tail\": []\n      },\n      \"competitor_insights\": {}\n    }\n  ],\n  \"top_performing_subjects\": [],\n  \"average_open_rate\": \"percentage\",\n  \"common_themes\": [],\n  \"backup_tools\": []\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        48
+      ],
+      "id": "d91db67b-79e2-4766-aa8b-27f5a1defb0f",
+      "name": "reseach_agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        96,
+        304
+      ],
+      "id": "dcde374c-b209-4010-9a81-5e9d4fbb8a2b",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7aV3bocNuIryHS7",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.timestamp }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        176,
+        208
+      ],
+      "id": "1a9eb014-0942-4b65-a76d-16a7c03c7af1",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-1.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-1.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values0_Prompt', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGeminiTool",
+      "typeVersion": 1,
+      "position": [
+        400,
+        272
+      ],
+      "id": "cc681a82-a671-46ab-ba03-5636c3774386",
+      "name": "Message a model in Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7T3pRd8FjTmEqITl",
+          "name": "6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "extract",
+        "urls": [
+          "https://www.aixploria.com/en/ultimate-list-ai/"
+        ],
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        288,
+        304
+      ],
+      "id": "6e97e788-71f3-4240-9435-a812232cbe95",
+      "name": "Extract in Tavily",
+      "credentials": {
+        "tavilyApi": {
+          "id": "lGo0eGR84qKCp3nF",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Call this agent for content writing ",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=# Role  \n- You are an expert weekly newsletter content writer specializing in AI/tech topics with deep understanding of engagement optimization, storytelling, and conversion-focused copywriting.  \n\n# Task  \nCreate and refine all newsletter content including headlines, introductions, AI tool descriptions, YouTube video summaries, CTAs, and transitions, ensuring high engagement and readability.  \n\n# Input  \n```json\n{\n  \"research_data\": {\n    \"trending_tools\": [],\n    \"keywords\": [],\n    \"competitor_insights\": []\n  },\n  \"transcript\": {\n    \"video_link\": \"string\",\n    \"video_title\": \"string\",\n    \"key_points\": []\n  },\n  \"quality_feedback\": {\n    \"revision_requests\": [],\n    \"score\": \"number\"\n  },\n  \"newsletter_template\": \"string\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        32
+      ],
+      "id": "7cf02b2f-e2fd-4fdc-841a-4f546700100c",
+      "name": "writer_agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        688,
+        336
+      ],
+      "id": "0b728467-a9ce-43bb-866b-c50d171c45c0",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7aV3bocNuIryHS7",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.timestamp }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        320
+      ],
+      "id": "1345b0fe-0761-4382-a652-486b23447f2c",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "toolDescription": "call this agent when conducting final review for readability and accuracy ",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt__User_Message_', ``, 'string') }}",
+        "options": {
+          "systemMessage": "=# Role  \n- You are a content quality assurance expert specializing in newsletter optimization, with expertise in engagement metrics, readability analysis, and conversion optimization.  \n\n# Task  \n- Evaluate newsletter quality across multiple dimensions, provide actionable improvement suggestions, and ensure content meets performance standards before publication.  \n\n# Input  \n```json\n{\n  \"newsletter_content\": \"\",\n  \"performance_benchmarks\": {\n    \"min_open_rate\": \"percentage\",\n    \"min_click_rate\": \"percentage\",\n    \"readability_score\": \"number\"\n  },\n  \"brand_guidelines\": {\n    \"tone\": \"string\",\n    \"style\": \"string\",\n    \"prohibited_terms\": []\n  },\n  \"previous_performance\": {\n    \"avg_open_rate\": \"percentage\",\n    \"avg_click_rate\": \"percentage\"\n  }\n}\n",
+          "batching": {}
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        16
+      ],
+      "id": "b1387263-bb78-4a64-a7fe-0d7334b60339",
+      "name": "qa_agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        992,
+        224
+      ],
+      "id": "7ad44e23-4245-435b-aad4-7d36aaf59aaf",
+      "name": "Google Gemini Chat Model4",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "V7aV3bocNuIryHS7",
+          "name": "Google Gemini(PaLM) Api account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.timestamp }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1136,
+        192
+      ],
+      "id": "fb3207f1-cdf1-413e-8d8c-37df00a36058",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.output.subject_line }}",
+        "emailType": "html",
+        "message": "={{ $json.output.fin_newsletter_content }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        336,
+        -272
+      ],
+      "id": "faacd4d3-3616-4b84-86d0-818a712056e3",
+      "name": "Create a draft",
+      "webhookId": "5904ec8a-f90b-453f-8b74-5be617dc0eb3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "UtK7vUQmYXnkMgde",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transcript_extractor": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "transcript_extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "transcript_extractor",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run an Actor in Apify": {
+      "ai_tool": [
+        [
+          {
+            "node": "transcript_extractor",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get dataset items in Apify": {
+      "ai_tool": [
+        [
+          {
+            "node": "transcript_extractor",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "transcript_extractor",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "reseach_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "reseach_agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "reseach_agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model in Google Gemini": {
+      "ai_tool": [
+        [
+          {
+            "node": "reseach_agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract in Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "reseach_agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "writer_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "writer_agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "writer_agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "qa_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Main Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "qa_agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "qa_agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3e1128b4-4fb0-4db7-b090-08d1b5fba5aa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "477245408a58b3fede6174e426631e941fb80a645b2a97bf185984375c694c3d"
+  },
+  "id": "tOVibS86kreMiSGx",
+  "tags": []
+}
